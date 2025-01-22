@@ -1,12 +1,14 @@
-version: '3.8'
+version: "3.9"
 
 services:
   fastapi:
     build: .
-    container_name: fastapi-image-verification
+    container_name: deep_face
     ports:
       - "8000:8000"
+    volumes:
+      - ./database:/app/database
+      - ./src:/app/src
     environment:
-      - PYTHONUNBUFFERED=1
-      - CUDA_VISIBLE_DEVICES=""
-    restart: unless-stopped
+      - DATABASE_DIR=/app/database
+    command: uvicorn src.app:app --host 0.0.0.0 --port 8000

@@ -1,18 +1,17 @@
 import os
-from typing import Optional, List
 from pathlib import Path
+from typing import List, Optional
+
 import cv2
 import numpy as np
 from deepface import DeepFace
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 IMAGE_SIZE = (224, 224)
 MODEL_NAME = "VGG-Face"
-DATABASE_DIR = "../database"
-
+DATABASE_DIR = os.getenv("DATABASE_DIR", "/app/database")
 
 model = DeepFace.build_model(MODEL_NAME)
 app = FastAPI()
@@ -56,14 +55,12 @@ def get_database_images() -> List[Path]:
         raise ValueError(f"Database directory {DATABASE_DIR} does not exist")
 
     return [
-        f for f in database_path.iterdir()
-        if f.suffix.lower() in ALLOWED_EXTENSIONS
+        f for f in database_path.iterdir() if f.suffix.lower() in ALLOWED_EXTENSIONS
     ]
 
 
 def verify_against_database(
-        uploaded_image_path: str,
-        model_name: str = MODEL_NAME
+    uploaded_image_path: str, model_name: str = MODEL_NAME
 ) -> VerificationResult:
     """
     Verify the uploaded image against a database of images using DeepFace.
@@ -97,7 +94,7 @@ def verify_against_database(
                     best_match = VerificationResult(
                         match=True,
                         confidence=round(confidence * 100, 2),  # Convert to percentage
-                        matched_image=db_image_path.name
+                        matched_image=db_image_path.name,
                     )
 
             except Exception as e:
@@ -131,7 +128,7 @@ async def verify_image(file: UploadFile = File(...)) -> VerificationResult:
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}",
         )
 
     temp_path = f"temp_{file.filename}"
