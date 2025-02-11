@@ -6,26 +6,24 @@ This project is a FastAPI application for image verification using DeepFace. It 
 
 ```
 .
-├── .gitignore
 ├── README.md
 ├── src
 │   └── app.py
-└── database
+├── database
+└── Dockerfile
 ```
 
-- `.gitignore`: Contains rules for ignoring specific files and directories in version control.
-- `README.md`: Project documentation.
 - `src/app.py`: Contains the FastAPI application code for image verification.
 - `database`: Directory where the image database is stored.
+- `Dockerfile`: Contains instructions to build a Docker image for the application.
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - FastAPI
 - DeepFace
 - OpenCV
 - NumPy
-- Pydantic
 
 ## Installation
 
@@ -46,6 +44,8 @@ This project is a FastAPI application for image verification using DeepFace. It 
 
 ## Running the Application
 
+### Using Python
+
 1. Navigate to the `src` directory:
     ```sh
     cd src
@@ -54,6 +54,20 @@ This project is a FastAPI application for image verification using DeepFace. It 
 2. Start the FastAPI application:
     ```sh
     uvicorn app:app --reload
+    ```
+
+3. The API will be available at `http://127.0.0.1:8000`.
+
+### Using Docker
+
+1. Build the Docker image:
+    ```sh
+    docker build -t image-verification-api .
+    ```
+
+2. Run the Docker container:
+    ```sh
+    docker run -d -p 8000:8000 -e DATABASE_DIR=/app/database image-verification-api
     ```
 
 3. The API will be available at `http://127.0.0.1:8000`.
@@ -77,9 +91,9 @@ curl -X POST "http://127.0.0.1:8000/verify" -F "file=@path_to_image"
 
 ```json
 {
-  "match": true,
-  "confidence": 95.67,
-  "matched_image": "example.jpg"
+   "match": true,
+   "confidence": 95.67,
+   "matched_image": "example.jpg"
 }
 ```
 
