@@ -1,10 +1,15 @@
+"""
+FastAPI application for image verification using DeepFace.
+This module provides an API endpoint to verify an uploaded image against a database of images.
+"""
+
 import os
 from pathlib import Path
 from typing import List, Optional
 
-import cv2
+import cv2  # pylint: disable=import-error
+import deepface  # pylint: disable=import-error # type: ignore
 import numpy as np
-from deepface import DeepFace
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -13,11 +18,20 @@ IMAGE_SIZE = (224, 224)
 MODEL_NAME = "VGG-Face"
 DATABASE_DIR = os.getenv("DATABASE_DIR", "/app/database")
 
-model = DeepFace.build_model(MODEL_NAME)
+model = deepface.build_model(MODEL_NAME)
 app = FastAPI()
 
 
 class VerificationResult(BaseModel):
+    """
+    Represents the result of an image verification process.
+
+    Attributes:
+        match (bool): Whether the uploaded image matches any image in the database.
+        confidence (float): Confidence level of the match (0-100).
+        matched_image (str): Filename of the matched image in the database.
+    """
+
     match: bool
     confidence: float = 0.0
     matched_image: str = ""
@@ -35,12 +49,12 @@ def decode_image(contents: bytes) -> Optional[np.ndarray]:
     """
     try:
         np_array = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)  # pylint: disable=no-member
         if image is None:
             raise ValueError("Failed to decode image")
         return image
     except Exception as e:
-        raise ValueError(f"Image decoding failed: {str(e)}")
+        raise ValueError(f"Image decoding failed: {str(e)}") from e
 
 
 def get_database_images() -> List[Path]:
@@ -80,13 +94,14 @@ def verify_against_database(
 
         for db_image_path in database_images:
             try:
-                result = DeepFace.verify(
+                result = deepface.verify(
                     img1_path=uploaded_image_path,
                     img2_path=str(db_image_path),
                     model_name=model_name,
                 )
 
-                # Calculate confidence as 1 - distance (since lower distance means higher similarity)
+                # Calculate confidence as 1 - distance
+                # (since lower distance means higher similarity)
                 confidence = 1.0 - result.get("distance", 1.0)
 
                 if result.get("verified") and confidence > highest_confidence:
@@ -97,14 +112,14 @@ def verify_against_database(
                         matched_image=db_image_path.name,
                     )
 
-            except Exception as e:
+            except ValueError as e:
                 print(f"Error comparing with {db_image_path}: {str(e)}")
                 continue
 
         return best_match
 
     except Exception as e:
-        raise ValueError(f"Verification failed: {str(e)}")
+        raise ValueError(f"Verification failed: {str(e)}") from e
 
 
 @app.post("/verify", response_model=VerificationResult)
@@ -136,16 +151,19 @@ async def verify_image(file: UploadFile = File(...)) -> VerificationResult:
     try:
         contents = await file.read()
         image = decode_image(contents)
-        image_resized = cv2.resize(image, IMAGE_SIZE)
-        cv2.imwrite(temp_path, image_resized)
+        if image is None:
+            raise HTTPException(status_code=400, detail="Failed to decode image")
+
+        image_resized = cv2.resize(image, IMAGE_SIZE)  # pylint: disable=no-member
+        cv2.imwrite(temp_path, image_resized)  # pylint: disable=no-member
 
         result = verify_against_database(temp_path)
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
